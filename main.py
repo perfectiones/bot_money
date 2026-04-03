@@ -14,11 +14,13 @@ bot = telebot.TeleBot(telegram_token)
 
 user_states = {}
 
+
 def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn1 = types.KeyboardButton("🎯 Доходы")
     btn2 = types.KeyboardButton("⛔ Расходы")
-    markup.add(btn1, btn2)
+    btn3 = types.KeyboardButton("Аналитика")
+    markup.add(btn1, btn2, btn3)
     return markup
 
 
@@ -44,10 +46,19 @@ def expense_menu():
     return markup
 
 
+def analytic_menu():
+    markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
+    btn1 = types.KeyboardButton("Назад")
+    markup.add(btn1)
+
+    return markup
+
+
 def cancel_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn = types.KeyboardButton("❌ Отмена")
     markup.add(btn)
+
     return markup
 
 
@@ -103,12 +114,10 @@ def message(message):
         bot.send_message(user_id, "❌ Операция отменена", reply_markup=main_menu())
         return
 
-    # ===== 2. ОБРАБОТКА СОСТОЯНИЙ =====
     if user_id in user_states:
         state = user_states[user_id]
         step = state.get('step')
 
-        # ---------- УДАЛЕНИЕ (ввод ID) ----------
         if step == 'waiting_delete_id':
             try:
                 record_id = int(text)
@@ -338,7 +347,8 @@ def message(message):
 
                 msg += format_transaction(
                     row) + " ✅" if date_from_db > current_date else " ❌" + "\n\n"
-            bot.send_message(user_id, f'📋 *Список доходов:*\n Общий доход: {total}\n Кол-во: {count} \n\n' + msg, parse_mode='Markdown')
+            bot.send_message(user_id, f'📋 *Список доходов:*\n Общий доход: {total}\n Кол-во: {count} \n\n' + msg,
+                             parse_mode='Markdown')
         else:
             bot.send_message(user_id, "📭 Нет доходов. Добавьте первый!")
 
@@ -406,9 +416,49 @@ def message(message):
                 count += 1 if date_from_db > current_date else 0
                 msg += format_transaction(
                     row) + " ✅\n\n" if date_from_db > current_date else " ❌" + "\n\n"
-            bot.send_message(user_id, f'📋 *Список расходов:*\n Общий расход: {total}\n Кол-во: {count} \n\n' + msg, parse_mode='Markdown')
+            bot.send_message(user_id, f'📋 *Список расходов:*\n Общий расход: {total}\n Кол-во: {count} \n\n' + msg,
+                             parse_mode='Markdown')
         else:
             bot.send_message(user_id, "📭 Нет расходов. Добавьте первый!")
+
+    elif text == 'Аналитика':
+        conn = sqlite3.connect('finance.db')
+        cursor = conn.cursor()
+        cursor.execute(
+            "SELECT rowid, name, amount, valid_from, valid_to FROM Expense WHERE id = ? ORDER BY valid_from DESC",
+            (user_id,))
+        Expense = cursor.fetchall()
+
+        cursor.execute(
+            "SELECT rowid, name, amount, valid_from, valid_to FROM Income WHERE id = ? ORDER BY valid_from DESC",
+            (user_id,))
+        Income = cursor.fetchall()
+
+        counterExpense = 0
+        totalSumExpense = 0
+
+        counterIncome = 0
+        totalSumIncome = 0
+
+        for row in Expense:
+            counterExpense += 1
+            totalSumExpense += row[2]
+
+        for row in Income:
+            counterIncome += 1
+            totalSumIncome += row[2]
+
+        relative = round((totalSumExpense / totalSumIncome) * 100)
+        profit = totalSumIncome - totalSumExpense
+        conn.close()
+
+        bot.send_message(user_id, f'''📋 *Аналитика:*
+                                            Общий расход: {totalSumExpense}
+                                            Общий доход: {totalSumIncome}
+                                            Отношение: {relative}%
+                                            Прибыль: {profit}
+                                ''',
+                         parse_mode='Markdown')
 
     elif text == '🤗 Добавить расход':
         user_states[user_id] = {
@@ -456,7 +506,7 @@ def message(message):
             bot.send_message(user_id, "📭 Нет расходов для удаления")
 
     # 🔙 Назад
-    elif text == '🔙 Назад':
+    elif text == '🔙 Назад' or text == 'Назад':
         if user_id in user_states:
             del user_states[user_id]
         bot.send_message(user_id, "Главное меню:", reply_markup=main_menu())
