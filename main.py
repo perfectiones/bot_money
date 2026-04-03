@@ -94,13 +94,11 @@ def format_transaction(row):
     return f"ID: {row[0]} | 📝 {row[1]} | 💰 {row[2]}₽ | 📅 {row[3]} → {row[4]}"
 
 
-# ========== СТАРТ ==========
 @bot.message_handler(commands=['start'])
 def start(message):
     bot.send_message(message.chat.id, "🔙 Главное меню:", reply_markup=main_menu())
 
 
-# ========== ОСНОВНОЙ ОБРАБОТЧИК ==========
 @bot.message_handler(content_types=['text'])
 def message(message):
     user_id = message.chat.id
@@ -342,14 +340,18 @@ def message(message):
         conn.close()
 
         if rows:
-            msg = "📋 *Список доходов:*\n\n"
+            msg = ""
+            total = 0
+            count = 0
             for row in rows:
                 date_from_db = datetime.strptime(row[-1], '%Y-%m-%d')
                 current_date = datetime.now()
-                # print(date_from_db > current_date)
+                total += row[2] if date_from_db > current_date else 0
+                count += 1 if date_from_db > current_date else 0
+
                 msg += format_transaction(
                     row) + " ✅" if date_from_db > current_date else " ❌" + "\n\n"
-            bot.send_message(user_id, msg, parse_mode='Markdown')
+            bot.send_message(user_id, f'📋 *Список доходов:*\n Общий доход: {total}\n Кол-во: {count} \n\n' + msg, parse_mode='Markdown')
         else:
             bot.send_message(user_id, "📭 Нет доходов. Добавьте первый!")
 
@@ -410,14 +412,18 @@ def message(message):
         conn.close()
 
         if rows:
-            msg = "📋 *Список расходов:*\n\n"
+            msg = ""
+            total = 0
+            count = 0
             for row in rows:
                 date_from_db = datetime.strptime(row[-1], '%Y-%m-%d')
                 current_date = datetime.now()
                 # print(date_from_db > current_date)
-                msg += format_transaction(row) + "✅" if date_from_db > current_date else "❌" + "\n\n"
-
-            bot.send_message(user_id, msg, parse_mode='Markdown')
+                total += row[2] if date_from_db > current_date else 0
+                count += 1 if date_from_db > current_date else 0
+                msg += format_transaction(
+                    row) + " ✅" if date_from_db > current_date else " ❌" + "\n\n"
+            bot.send_message(user_id, f'📋 *Список расходов:*\n Общий расход: {total}\n Кол-во: {count} \n\n' + msg, parse_mode='Markdown')
         else:
             bot.send_message(user_id, "📭 Нет расходов. Добавьте первый!")
 
