@@ -5,7 +5,6 @@ import os
 from datetime import datetime
 from dotenv import load_dotenv
 
-# ========== НАСТРОЙКА ==========
 dotenv_path = os.path.join(os.path.dirname(__file__), '.env')
 if os.path.exists(dotenv_path):
     load_dotenv(dotenv_path)
@@ -13,11 +12,8 @@ if os.path.exists(dotenv_path):
 telegram_token = os.getenv('TOKEN')
 bot = telebot.TeleBot(telegram_token)
 
-# Словарь для хранения состояний пользователей
 user_states = {}
 
-
-# ========== КЛАВИАТУРЫ ==========
 def main_menu():
     markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
     btn1 = types.KeyboardButton("🎯 Доходы")
@@ -55,12 +51,10 @@ def cancel_menu():
     return markup
 
 
-# ========== ИНИЦИАЛИЗАЦИЯ БАЗЫ ДАННЫХ ==========
 def init_db():
     conn = sqlite3.connect('finance.db')
     cursor = conn.cursor()
 
-    # Таблица доходов
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Income (
             id INTEGER,
@@ -71,7 +65,6 @@ def init_db():
         )
     ''')
 
-    # Таблица расходов
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS Expense (
             id INTEGER,
@@ -89,9 +82,8 @@ def init_db():
 init_db()
 
 
-# ========== ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ ==========
 def format_transaction(row):
-    return f"ID: {row[0]} | 📝 {row[1]} | 💰 {row[2]}₽ | 📅 {row[3]} → {row[4]}"
+    return f"ID: {row[0]} | {row[1]} | {row[2]}₽ | {row[3]} → {row[4]}"
 
 
 @bot.message_handler(commands=['start'])
@@ -319,17 +311,12 @@ def message(message):
             del user_states[user_id]
             return
 
-    # ===== 3. ОБЫЧНЫЕ КОМАНДЫ =====
-
-    # 🎯 Доходы
     if text == '🎯 Доходы':
         bot.send_message(user_id, "💰 Меню доходов:", reply_markup=income_menu())
 
-    # ⛔ Расходы
     elif text == '⛔ Расходы':
         bot.send_message(user_id, "💸 Меню расходов:", reply_markup=expense_menu())
 
-    # 📃 Список доходов
     elif text == '📃 Список доходов':
         conn = sqlite3.connect('finance.db')
         cursor = conn.cursor()
@@ -355,7 +342,6 @@ def message(message):
         else:
             bot.send_message(user_id, "📭 Нет доходов. Добавьте первый!")
 
-    # 🤗 Добавить доход
     elif text == '🤗 Добавить доход':
         user_states[user_id] = {
             'step': 'waiting_name',
@@ -365,7 +351,6 @@ def message(message):
         }
         bot.send_message(user_id, "📝 Введи НАЗВАНИЕ дохода (например: Зарплата):", reply_markup=cancel_menu())
 
-    # ✏️ Редактировать доход
     elif text == '✏️ Редактировать доход':
         conn = sqlite3.connect('finance.db')
         cursor = conn.cursor()
@@ -383,7 +368,6 @@ def message(message):
         else:
             bot.send_message(user_id, "📭 Нет доходов для редактирования")
 
-    # 🗑 Удалить доход
     elif text == '🗑 Удалить доход':
         conn = sqlite3.connect('finance.db')
         cursor = conn.cursor()
@@ -401,7 +385,6 @@ def message(message):
         else:
             bot.send_message(user_id, "📭 Нет доходов для удаления")
 
-    # 📃 Список расходов
     elif text == '📃 Список расходов':
         conn = sqlite3.connect('finance.db')
         cursor = conn.cursor()
@@ -422,12 +405,11 @@ def message(message):
                 total += row[2] if date_from_db > current_date else 0
                 count += 1 if date_from_db > current_date else 0
                 msg += format_transaction(
-                    row) + " ✅" if date_from_db > current_date else " ❌" + "\n\n"
+                    row) + " ✅\n\n" if date_from_db > current_date else " ❌" + "\n\n"
             bot.send_message(user_id, f'📋 *Список расходов:*\n Общий расход: {total}\n Кол-во: {count} \n\n' + msg, parse_mode='Markdown')
         else:
             bot.send_message(user_id, "📭 Нет расходов. Добавьте первый!")
 
-    # 🤗 Добавить расход
     elif text == '🤗 Добавить расход':
         user_states[user_id] = {
             'step': 'waiting_name',
@@ -477,7 +459,7 @@ def message(message):
     elif text == '🔙 Назад':
         if user_id in user_states:
             del user_states[user_id]
-        bot.send_message(user_id, "🔙 Главное меню:", reply_markup=main_menu())
+        bot.send_message(user_id, "Главное меню:", reply_markup=main_menu())
 
     else:
         bot.send_message(user_id, "Используйте кнопки меню", reply_markup=main_menu())
@@ -485,5 +467,5 @@ def message(message):
 
 # ========== ЗАПУСК ==========
 if __name__ == "__main__":
-    print("🚀 Бот запущен...")
+    print("Бот запущен...")
     bot.polling(none_stop=True, interval=0)
